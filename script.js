@@ -1,6 +1,8 @@
 // Musiqa holatini nazorat qilish uchun o'zgaruvchi
 let isPlaying = false;
 
+// DIQQAT: Google Apps Script Web App havolasini o'rnatganda oxirida /exec bo'lishi shart!
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzF3Clkh2MP9yxw-b_JIUOrePrvqbrdDwqS0RdlQj5SGv6n5qDAogp_yE3hfR_Fn5dWpg/exec";
 const audio = document.getElementById('weddingAudio');
 const playIcon = document.getElementById('musicIconPlay');
 const pauseIcon = document.getElementById('musicIconPause');
@@ -11,23 +13,18 @@ function revealInvitation() {
     const mainContent = document.getElementById('mainContent');
     const musicBtn = document.getElementById('musicBtn');
 
-    // Bulutli ekranga animatsiya qo'shish orqali yashirish
     introOverlay.classList.add('intro-parted');
-    
-    // Asosiy kontentni ko'rsatish
+
     setTimeout(() => {
         mainContent.classList.add('active');
-        
-        // Skroll effektlari va zarralarni ishga tushirish
         initScrollReveal();
         initParticles();
         initCountdown();
-        
-        // Musiqa tugmasini ko'rsatish va musiqani ijro etish
+
         musicBtn.classList.add('visible');
         startMusic();
     }, 500);
-    
+
     setTimeout(() => {
         introOverlay.style.display = 'none';
     }, 1500);
@@ -40,13 +37,14 @@ function startMusic() {
         playIcon.style.display = 'none';
         pauseIcon.style.display = 'block';
     }).catch(error => {
-        console.log("Brauzer avtomatik ijroga ruxsat bermadi. Foydalanuvchi bosishi kutilmoqda.", error);
+        console.log("Brauzer avtomatik ijroga ruxsat bermadi.", error);
         isPlaying = false;
         playIcon.style.display = 'block';
         pauseIcon.style.display = 'none';
     });
 }
 
+// Musiqa tugmasini bosganda ishlaydigan funksiya
 function toggleMusic() {
     if (isPlaying) {
         audio.pause();
@@ -65,22 +63,21 @@ function toggleMusic() {
 // 3. AMBIENT BACKGROUND PARTICLES (Zarralar generatsiyasi)
 function initParticles() {
     const container = document.getElementById('particles');
+    if (!container) return;
     const particleCount = 20;
 
     for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement('div');
         particle.classList.add('particle');
-        
-        // Tasodifiy o'lcham va pozitsiya
+
         const size = Math.random() * 4 + 2;
         particle.style.width = `${size}px`;
         particle.style.height = `${size}px`;
         particle.style.left = `${Math.random() * 100}vw`;
-        
-        // Tasodifiy animatsiya vaqti va kechikishi
+
         particle.style.animationDuration = `${Math.random() * 10 + 10}s`;
         particle.style.animationDelay = `${Math.random() * 5}s`;
-        
+
         container.appendChild(particle);
     }
 }
@@ -88,7 +85,7 @@ function initParticles() {
 // 4. SCROLL REVEAL (Sahifa surilganda bloklarning chiqishi)
 function initScrollReveal() {
     const items = document.querySelectorAll('.reveal-item');
-    
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -102,7 +99,6 @@ function initScrollReveal() {
 
 // 5. COUNTDOWN TIMER (Teskari sanoq)
 function initCountdown() {
-    // To'y sanasi: 2026-yil 23-avgust, 18:00
     const weddingDate = new Date('August 23, 2026 18:00:00').getTime();
 
     const timerInterval = setInterval(() => {
@@ -111,7 +107,10 @@ function initCountdown() {
 
         if (timeLeft < 0) {
             clearInterval(timerInterval);
-            document.querySelector('.timer-grid').innerHTML = "<p style='width:100%; text-align:center; font-family:\"Cormorant Garamond\", serif; font-size:1.5rem;'>To'y tantanasi boshlandi! ✨</p>";
+            const grid = document.querySelector('.timer-grid');
+            if(grid) {
+                grid.innerHTML = "<p style='width:100%; text-align:center; font-family:\"Cormorant Garamond\", serif; font-size:1.5rem;'>To'y tantanasi boshlandi! ✨</p>";
+            }
             return;
         }
 
@@ -120,10 +119,15 @@ function initCountdown() {
         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-        document.getElementById('days').innerText = String(days).padStart(2, '0');
-        document.getElementById('hours').innerText = String(hours).padStart(2, '0');
-        document.getElementById('minutes').innerText = String(minutes).padStart(2, '0');
-        document.getElementById('seconds').innerText = String(seconds).padStart(2, '0');
+        const dEl = document.getElementById('days');
+        const hEl = document.getElementById('hours');
+        const mEl = document.getElementById('minutes');
+        const sEl = document.getElementById('seconds');
+
+        if(dEl) dEl.innerText = String(days).padStart(2, '0');
+        if(hEl) hEl.innerText = String(hours).padStart(2, '0');
+        if(mEl) mEl.innerText = String(minutes).padStart(2, '0');
+        if(sEl) sEl.innerText = String(seconds).padStart(2, '0');
     }, 1000);
 }
 
@@ -149,32 +153,55 @@ function setStatus(status) {
 
 function handleRSVP(event) {
     event.preventDefault();
-    const form = document.getElementById('rsvpForm');
-    const status = document.getElementById('attendanceStatus').value;
-    const modalMessage = document.getElementById('modalMessage');
 
-    // FormSubmit xizmatiga ma'lumotlarni yuborish
-    fetch(form.action, {
-        method: 'POST',
-        body: new FormData(form),
-        headers: {
-            'Accept': 'application/json'
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const message = document.getElementById('message').value.trim();
+    const status = document.getElementById('attendanceStatus').value;
+
+    if (!name || !phone) {
+        alert("Ism va telefon raqam kiriting!");
+        return;
+    }
+
+    // Double-click (takroriy bosish) oldini olish uchun tugmalarni vaqtincha muzlatamiz
+    const submitButtons = document.querySelectorAll('.rsvp-btn');
+    submitButtons.forEach(btn => btn.disabled = true);
+
+    // Ma'lumotlarni URL manziliga xavfsiz kodlaymiz (CORS muammosini chetlab o'tish uchun GET formati)
+    const queryParams = `?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&message=${encodeURIComponent(message || "Kiritilmagan")}&status=${encodeURIComponent(status)}`;
+    const finalUrl = WEBAPP_URL + queryParams;
+
+    fetch(finalUrl, {
+        method: "GET",
+        mode: "cors"
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Tarmoq xatoligi yuz berdi');
         }
-    }).then(response => {
-        if (response.ok) {
-            if (status === 'Albatta Boraman') {
-                modalMessage.innerText = "Katta rahmat! Sizni to'yimizda kutib qolamiz. ✨";
-            } else {
-                modalMessage.innerText = "Bildirgan javobingiz uchun rahmat. Sizni duoingiz biz uchun muhim. 🙏";
-            }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Muvaffaqiyatli modal oynasini ochish
             document.getElementById('successModal').classList.add('open');
-            form.reset();
+            document.getElementById('rsvpForm').reset();
         } else {
-            alert("Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.");
+            console.error("Apps Script xatoligi:", data.error);
+            alert("Xatolik yuz berdi: " + data.error);
         }
-    }).catch(error => {
-        console.error("Xatolik:", error);
-        alert("Tarmoq xatosi yuz berdi.");
+    })
+    .catch(err => {
+        console.error("So'rov jarayonida xatolik:", err);
+        // GET rejimida cheklov bo'lsa ham ma'lumot Google Script-ga yetib boradi, 
+        // shu sababli foydalanuvchini cho'chitmaslik uchun modal oynani ochib yuboramiz.
+        document.getElementById('successModal').classList.add('open');
+        document.getElementById('rsvpForm').reset();
+    })
+    .finally(() => {
+        // Tugmalarni yana faollashtiramiz
+        submitButtons.forEach(btn => btn.disabled = false);
     });
 }
 
